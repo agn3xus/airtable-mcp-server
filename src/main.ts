@@ -6,6 +6,10 @@ import express from 'express';
 import {AirtableService} from './airtableService.js';
 import {createServer} from './index.js';
 
+// Cloud Run deployment configuration
+const CLOUD_RUN_HOST = '0.0.0.0';
+const CLOUD_RUN_PORT = 8080;
+
 function setupSignalHandlers(cleanup: () => Promise<void>): void {
 	process.on('SIGINT', async () => {
 		await cleanup();
@@ -36,6 +40,11 @@ function setupSignalHandlers(cleanup: () => Promise<void>): void {
 		const app = express();
 		app.use(express.json());
 
+		// Health check endpoint for Cloud Run
+		app.get('/health', (_req, res) => {
+			res.status(200).json({status: 'healthy'});
+		});
+
 		const httpTransport = new StreamableHTTPServerTransport({
 			sessionIdGenerator: undefined,
 			enableJsonResponse: true,
@@ -47,10 +56,10 @@ function setupSignalHandlers(cleanup: () => Promise<void>): void {
 
 		await server.connect(httpTransport);
 
-		const port = parseInt(process.env.PORT || '3000', 10);
-		const httpServer = app.listen(port, () => {
-			console.error(`Airtable MCP server running on http://localhost:${port}/mcp`);
-			console.error('WARNING: HTTP transport has no authentication. Only use behind a reverse proxy or in a secured setup.');
+		// Hardcoded for Cloud Run deployment: 0.0.0.0:8080
+		const httpServer = app.listen(CLOUD_RUN_PORT, CLOUD_RUN_HOST, () => {
+			console.error(`Airtable MCP server running on http://${CLOUD_RUN_HOST}:${CLOUD_RUN_PORT}/mcp`);
+			console.error('Health check available at /health');
 		});
 
 		setupSignalHandlers(async () => {
